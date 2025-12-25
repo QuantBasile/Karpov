@@ -11,6 +11,14 @@ from ui.theme import Theme
 from ui.widgets.statusbar import StatusBar
 from ui.views.overview import OverviewView
 from ui.views.counterparty import CounterpartyView
+from ui.views.counterparty_evolution import CounterpartyEvolutionView  # NEW
+from ui.views.counterparty_flow import CounterpartyFlowView  # NEW
+from ui.views.flow_puro import FlowPuroView
+from ui.views.und_name import UndNameView
+from ui.views.und_evolution import UndEvolutionView
+from ui.views.und_flow import UndFlowView
+from ui.views.size_percentiles import SizePercentilesView
+
 
 
 class App(tk.Tk):
@@ -27,6 +35,11 @@ class App(tk.Tk):
 
         self.state = AppState()
         self.state.app = self
+        # en AppState.__init__ (o como lo tengas)
+        self.cp_evolution_aggs = None  # dict con {"Daily": df, "Weekly": df, "Monthly": df}
+        self.cp_list = None            # lista de CPs (para listas)
+        self.flow_puro = None  # dict con base/aggs/values
+
 
         self._q: queue.Queue[tuple[str, object]] = queue.Queue()
         self._worker: threading.Thread | None = None
@@ -79,6 +92,14 @@ class App(tk.Tk):
         self.views: dict[str, ttk.Frame] = {}
         self.views["overview"] = OverviewView(self.content)
         self.views["counterparty"] = CounterpartyView(self.content)
+        self.views["cp_evolution"] = CounterpartyEvolutionView(self.content)  # NEW
+        self.views["cp_flow"] = CounterpartyFlowView(self.content)  # NEW
+        self.views["flow_puro"] = FlowPuroView(self.content)
+        self.views["und_name"] = UndNameView(self.content)
+        self.views["und_evolution"] = UndEvolutionView(self.content)
+        self.views["und_flow"] = UndFlowView(self.content)
+        self.views["size_percentiles"] = SizePercentilesView(self.content)
+
 
         for v in self.views.values():
             v.place(relx=0, rely=0, relwidth=1, relheight=1)
@@ -89,6 +110,22 @@ class App(tk.Tk):
         ttk.Button(self.sidebar, text="1.1 Counterparty", style="Sidebar.TButton",
                    command=lambda: self.show("counterparty")).pack(fill="x", padx=10, pady=4)
 
+        ttk.Button(self.sidebar, text="1.2 CP Evolution", style="Sidebar.TButton",  # NEW
+                   command=lambda: self.show("cp_evolution")).pack(fill="x", padx=10, pady=4)
+        ttk.Button(self.sidebar, text="1.3 CP Flow", style="Sidebar.TButton",
+           command=lambda: self.show("cp_flow")).pack(fill="x", padx=10, pady=4)
+        ttk.Button(self.sidebar, text="*Flow Puro", style="Sidebar.TButton",
+                   command=lambda: self.show("flow_puro")).pack(fill="x", padx=10, pady=4)
+        ttk.Button(self.sidebar, text="2.1 UND_NAME",
+                   command=lambda: self.show("und_name")).pack(fill="x", padx=10, pady=4)
+        ttk.Button(self.sidebar, text="2.2 UND Evolution",
+                   command=lambda: self.show("und_evolution")).pack(fill="x", padx=10, pady=4)
+        ttk.Button(self.sidebar, text="2.3 UND Flow",
+                   command=lambda: self.show("und_flow")).pack(fill="x", padx=10, pady=4)
+        ttk.Button(self.sidebar, text="3.1 Size %iles",
+           command=lambda: self.show("size_percentiles")).pack(fill="x", padx=10, pady=4)
+
+
         self.show("overview")
 
     def show(self, key: str):
@@ -98,6 +135,42 @@ class App(tk.Tk):
             self.views["overview"].render(self.state.df_clean)
         elif key == "counterparty":
             self.views["counterparty"].render(self.state.df_clean)
+
+        elif key == "cp_evolution":
+            self.views["cp_evolution"].render(self.state.df_clean, self.state.cp_time_aggs, self.state.cp_list)
+        
+        elif key == "cp_flow":
+            self.views["cp_flow"].render(self.state.df_clean, self.state.cp_time_aggs, self.state.cp_list)
+        elif key == "flow_puro":
+            pack = getattr(self.state, "flow_puro", None)
+            self.views["flow_puro"].render(self.state.df_clean, pack)
+        elif key == "und_name":
+            self.views["und_name"].render(
+                self.state.df_clean,
+                getattr(self.state, "filter_values", None),
+                getattr(self.state, "und_name", None),
+            )
+        elif key == "und_evolution":
+            pack = getattr(self.state, "und_evolution", None)
+            if pack:
+                self.views["und_evolution"].render(self.state.df_clean, aggs=pack["aggs"], und_list=pack["und_list"])
+            else:
+                self.views["und_evolution"].render(self.state.df_clean)
+
+        elif key == "und_flow":
+            pack = getattr(self.state, "und_flow", None)
+            if pack:
+                self.views["und_flow"].render(self.state.df_clean, aggs=pack["aggs"], und_list=pack["und_list"])
+            else:
+                self.views["und_flow"].render(self.state.df_clean)
+
+        elif key == "size_percentiles":
+            self.views["size_percentiles"].render(
+                self.state.df_clean,
+                getattr(self.state, "size_percentiles", None),
+            )
+
+
 
     def _set_busy(self, busy: bool, msg: str = ""):
         if busy:

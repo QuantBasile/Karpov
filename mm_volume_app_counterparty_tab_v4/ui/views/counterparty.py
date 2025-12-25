@@ -434,7 +434,7 @@ class CounterpartyView(ttk.Frame):
             return pd.Series(dtype="float64")
 
         notional = pd.to_numeric(df_f.get("Notional"), errors="coerce").fillna(0.0)
-        s = df_f.assign(_Notional=notional).groupby("Counterparty")["_Notional"].sum()
+        s = df_f.assign(_Notional=notional).groupby("Counterparty", observed=False)["_Notional"].sum()
         return s.sort_values(ascending=False)
 
     def _on_chart_resize(self, event):
@@ -490,7 +490,7 @@ class CounterpartyView(ttk.Frame):
         notional = pd.to_numeric(df_f.get("Notional"), errors="coerce").fillna(0.0)
         dd = df_f.assign(_Notional=notional)
 
-        grp = dd.groupby("Counterparty").agg(
+        grp = dd.groupby("Counterparty", observed=False).agg(
             Notional=("_Notional", "sum"),
             Trades=("TradeNo", "count"),
             CallNotional=("_Notional", lambda s: float(s[dd.loc[s.index, "CALL_OPTION"].astype(str) == "C"].sum())),

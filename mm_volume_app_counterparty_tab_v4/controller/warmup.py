@@ -14,8 +14,10 @@ def warmup_after_load(app) -> None:
     steps = [
         lambda: app.views["overview"].render(df),
         lambda: app.views["counterparty"].render(df),
-        # Ensure default 'ALL' state is computed (KPIs + plot + table)
         lambda: app.views["counterparty"].reset_filters(),
+        lambda: app.views["cp_evolution"].render(df, app.state.cp_time_aggs, app.state.cp_list),
+        lambda: app.views["cp_flow"].render(df, app.state.cp_time_aggs, app.state.cp_list),
+        lambda: app.views["und_name"].reset_filters()
     ]
 
     def run_next(i: int = 0):

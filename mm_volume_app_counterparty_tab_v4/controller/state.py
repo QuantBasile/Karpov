@@ -16,3 +16,8 @@ class AppState:
     df_raw: Optional[pd.DataFrame] = None
     df_clean: Optional[pd.DataFrame] = None
     app: Optional[object] = None   # 👈 añade esto
+    cp_time_aggs: Optional[dict] = None
+    cp_list: Optional[list[str]] = None
+    
+
+

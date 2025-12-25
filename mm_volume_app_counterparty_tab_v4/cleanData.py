@@ -163,7 +163,8 @@ def _coerce_date_to_string(series: pd.Series, *, dayfirst: bool = True) -> pd.Se
     if pd.api.types.is_datetime64_any_dtype(series):
         dt = pd.to_datetime(series, errors="coerce")
     else:
-        dt = pd.to_datetime(_to_string_series(series), errors="coerce", dayfirst=dayfirst)
+        dt = pd.to_datetime(_to_string_series(series), errors="coerce", format="%Y-%m-%d")
+
 
     out = dt.dt.strftime("%Y-%m-%d").astype("string")
     out = out.where(dt.notna(), pd.NA)
@@ -276,6 +277,22 @@ def clean_mm_logs(
     for col in ["Expiry", "Knock_Date"]:
         if col in df.columns:
             df[col] = _coerce_date_to_string(df[col], dayfirst=dayfirst)
+            
+    # --- NOTIONAL ---
+    q = pd.to_numeric(df["Quantity"], errors="coerce").fillna(0.0).abs()
+    p = pd.to_numeric(df["Price"], errors="coerce").fillna(0.0)
+    df["Notional"] = q * p
+
+    # --- Flow (signed) using "b/s": buy -> negative, sell -> positive ---
+    # normalize b/s to lowercase string
+    bs = df.get("b/s")
+    if bs is None:
+        # if column missing, create 0 flow (safe)
+        df["Flow"] = 0.0
+    else:
+        bs_norm = bs.astype(str).str.strip().str.lower()
+        sign = bs_norm.map({"sell": 1.0, "buy": -1.0}).fillna(0.0)
+        df["Flow"] = sign * (df["Quantity"].abs() * df["Price"])
 
     # ---------------------------------------------------------
     # Derived date keys for all tabs: _Day / _Month / _Week (Mon)
